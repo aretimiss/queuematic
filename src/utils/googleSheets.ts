@@ -22,7 +22,12 @@ export interface QueueStatus {
   position: number;
 }
 
-// Replace with your actual Google Apps Script web app URL
+// Using the provided Google Sheet link
+// https://docs.google.com/spreadsheets/d/1NitvjEblAeNQnzvHmJrmlLx6wvB29YGC1x6wGG2MW-k/edit
+const SHEET_ID = '1NitvjEblAeNQnzvHmJrmlLx6wvB29YGC1x6wGG2MW-k';
+
+// Note: In a production environment, you would need to create a Google Apps Script
+// web app that serves as a proxy to access this sheet and deploy it
 const SHEET_ENDPOINT = 'https://script.google.com/macros/s/YOUR_GOOGLE_APPS_SCRIPT_ID/exec';
 
 export const googleSheetsService = {
@@ -32,6 +37,7 @@ export const googleSheetsService = {
   async registerQueue(idCardNumber: string): Promise<QueueRecord> {
     try {
       console.log('Registering queue for ID card:', idCardNumber);
+      console.log('Using Google Sheet ID:', SHEET_ID);
       
       // In a real implementation, this would call the Google Apps Script web app
       // For demo purposes, we'll simulate a response
@@ -60,6 +66,7 @@ export const googleSheetsService = {
   async getQueueStatus(queueNumber: number): Promise<QueueStatus> {
     try {
       console.log('Getting queue status for number:', queueNumber);
+      console.log('Using Google Sheet ID:', SHEET_ID);
       
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 600));
@@ -92,5 +99,12 @@ export const googleSheetsService = {
       console.error('Error checking notification:', error);
       return false;
     }
+  },
+  
+  /**
+   * Gets the Google Sheet URL for debugging or manual access
+   */
+  getSheetUrl(): string {
+    return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
   }
 };

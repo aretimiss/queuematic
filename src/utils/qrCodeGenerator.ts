@@ -17,8 +17,9 @@ export const qrCodeGenerator = {
    */
   async generateQRCode(data: QRCodeData): Promise<string> {
     try {
-      // Format the data as a string with ID card number and queue number
-      const qrContent = `รหัสบัตรประชาชน: ${data.idCardNumber}\nหมายเลขคิว: ${data.queueNumber}`;
+      // Format the data as a string with ID card number and queue number only
+      // Changed to only include ID card number and queue number as requested
+      const qrContent = `${data.idCardNumber},${data.queueNumber}`;
       
       // Generate QR code as data URL
       const qrCodeDataUrl = await QRCode.toDataURL(qrContent, {
