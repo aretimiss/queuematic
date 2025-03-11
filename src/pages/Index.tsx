@@ -132,10 +132,11 @@ const Index = () => {
         <div className="container mx-auto max-w-5xl">
           <div className="flex items-center justify-center mb-2">
             <Hospital className="h-6 w-6 text-primary mr-2" />
-            <h1 className="text-2xl font-medium">ระบบจองคิวโรงพยาบาล</h1>
+            <h1 className="text-2xl font-medium">มินิโปรเจคนักศึกษาระบบจองคิวโรงพยาบาล</h1>
+            
           </div>
           <p className="text-center text-muted-foreground max-w-md mx-auto">
-            ลงทะเบียนด้วยเลขบัตรประชาชน รับคิวอัตโนมัติ พร้อมการแจ้งเตือนเมื่อใกล้ถึงคิว
+            ลงทะเบียนด้วยเลขบัตรประชาชน รับคิวอัตโนมัติ พร้อมการแจ้งเตือนเมื่อใกล้ถึงคิว กรุณาแสดงบัตรประชาชนพร้อมหมายเลขคิว
           </p>
         </div>
       </motion.header>
@@ -203,7 +204,11 @@ const Index = () => {
       >
         <div className="container mx-auto max-w-5xl">
           <div className="text-center text-sm text-muted-foreground">
-            <p>© {new Date().getFullYear()} ระบบจองคิวโรงพยาบาล</p>
+            <p>©  ผู้จัดทำนักศึกษามหาวิทยาลัยเทคโนโลยีราชมงคลตะวันออก</p>
+            <p>รายชื่อผู้จัดทำ</p>
+            <p>นายกำพน ชื่นชม</p>
+            <p>นางสาววณิดา แสงทับทิม </p>
+            <p>นางสาวอริษา นิลกิจ</p>
           </div>
         </div>
       </motion.footer>

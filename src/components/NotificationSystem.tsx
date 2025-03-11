@@ -30,7 +30,7 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ queueNum
         // Send a test notification
         new Notification('การแจ้งเตือนทำงานแล้ว', {
           body: 'คุณจะได้รับการแจ้งเตือนเมื่อใกล้ถึงคิวของคุณ',
-          icon: '/favicon.ico'
+          icon: '/favicon.jpg'
         });
       }
     }
@@ -62,7 +62,7 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ queueNum
       if (notificationsEnabled && Notification.permission === 'granted') {
         new Notification('เตรียมตัวได้เลย!', {
           body: `คิวของคุณอีก ${position} คิว จะถึงคิวคุณแล้ว`,
-          icon: '/favicon.ico'
+          icon: '/favicon.jpg'
         });
       }
       

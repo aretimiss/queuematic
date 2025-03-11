@@ -54,7 +54,7 @@ export const QueueStatusDisplay: React.FC<QueueStatusProps> = ({ queueNumber, on
     if (Notification.permission === 'granted') {
       new Notification('เตรียมตัวได้เลย!', {
         body: `คิวของคุณอีก ${position} คิว จะถึงคิวคุณแล้ว`,
-        icon: '/favicon.ico'
+        icon: '/favicon.jpg'
       });
     }
     
