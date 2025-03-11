@@ -1,0 +1,138 @@
+
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
+import { googleSheetsService, QueueRecord } from '@/utils/googleSheets';
+import { ArrowRight, ClipboardCheck, Loader2 } from 'lucide-react';
+
+interface QueueFormProps {
+  onQueueRegistered: (queueData: QueueRecord) => void;
+}
+
+export const QueueForm: React.FC<QueueFormProps> = ({ onQueueRegistered }) => {
+  const [idCardNumber, setIdCardNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  
+  // Validates a Thai ID card number (13 digits)
+  const validateIdCardNumber = (id: string): boolean => {
+    // Basic validation - 13 digits
+    const idPattern = /^\d{13}$/;
+    return idPattern.test(id);
+  };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only allow numbers
+    const value = e.target.value.replace(/\D/g, '');
+    
+    // Limit to 13 digits (Thai ID card length)
+    if (value.length <= 13) {
+      setIdCardNumber(value);
+    }
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateIdCardNumber(idCardNumber)) {
+      toast({
+        title: "กรุณาตรวจสอบเลขบัตรประชาชน",
+        description: "เลขบัตรประชาชนต้องมี 13 หลัก",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const queueData = await googleSheetsService.registerQueue(idCardNumber);
+      
+      toast({
+        title: "ลงทะเบียนสำเร็จ",
+        description: `คุณได้รับคิวหมายเลข ${queueData.queueNumber}`,
+      });
+      
+      onQueueRegistered(queueData);
+    } catch (error) {
+      console.error('Error registering queue:', error);
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error instanceof Error ? error.message : "ไม่สามารถลงทะเบียนได้ กรุณาลองใหม่อีกครั้ง",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className="w-full max-w-md mx-auto"
+    >
+      <Card className="glass-card overflow-hidden">
+        <CardHeader className="space-y-1 pb-4">
+          <CardTitle className="text-2xl font-medium">ลงทะเบียนรับคิว</CardTitle>
+          <CardDescription>
+            กรุณากรอกเลขบัตรประชาชน 13 หลักเพื่อรับคิว
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="เลขบัตรประชาชน 13 หลัก"
+                  value={idCardNumber}
+                  onChange={handleInputChange}
+                  maxLength={13}
+                  className="h-12 text-lg font-medium tracking-wider text-center input-highlight"
+                  required
+                  disabled={loading}
+                />
+                {idCardNumber.length > 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                  >
+                    {idCardNumber.length === 13 ? (
+                      <ClipboardCheck className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <span className="text-xs font-medium text-muted-foreground">{idCardNumber.length}/13</span>
+                    )}
+                  </motion.div>
+                )}
+              </div>
+            </div>
+          </form>
+        </CardContent>
+        <CardFooter>
+          <Button 
+            onClick={handleSubmit}
+            disabled={idCardNumber.length !== 13 || loading} 
+            className="w-full h-12 text-base hover-scale"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                กำลังประมวลผล
+              </>
+            ) : (
+              <>
+                รับคิว
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </CardFooter>
+      </Card>
+    </motion.div>
+  );
+};
