@@ -39,14 +39,27 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
   }, [queueData]);
   
   const handleDownload = () => {
-    if (!qrCodeUrl) return;
+    // สร้างข้อความที่ประกอบด้วยหมายเลขคิวและเลขบัตรประชาชน
+    const contentToDownload = `หมายเลขคิว: ${queueData.queueNumber}\nเลขบัตรประชาชน: ${queueData.idCardNumber}`;
     
+    // สร้าง Blob จากข้อความ
+    const blob = new Blob([contentToDownload], { type: 'text/plain;charset=utf-8' });
+    
+    // สร้าง URL สำหรับ Blob
+    const url = URL.createObjectURL(blob);
+    
+    // สร้างลิงก์สำหรับดาวน์โหลดและคลิกโดยอัตโนมัติ
     const link = document.createElement('a');
-    link.href = qrCodeUrl;
-    link.download = `queue-${queueData.queueNumber}.png`;
+    link.href = url;
+    link.download = `คิว-${queueData.queueNumber}.txt`;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    
+    // ทำความสะอาดโดยการลบลิงก์และเพิกถอน URL
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 100);
   };
   
   const formatTime = (timestamp: string) => {
@@ -138,10 +151,9 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
               variant="outline"
               className="w-full hover-scale"
               onClick={handleDownload}
-              disabled={!qrCodeUrl}
             >
               <Download className="mr-2 h-4 w-4" />
-              บันทึก QR Code
+              บันทึกข้อมูลคิว
             </Button>
             <Button
               variant="ghost"
