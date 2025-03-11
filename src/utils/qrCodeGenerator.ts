@@ -17,11 +17,11 @@ export const qrCodeGenerator = {
    */
   async generateQRCode(data: QRCodeData): Promise<string> {
     try {
-      // Create a JSON string with the data
-      const jsonString = JSON.stringify(data);
+      // Format the data as a string with ID card number and queue number
+      const qrContent = `รหัสบัตรประชาชน: ${data.idCardNumber}\nหมายเลขคิว: ${data.queueNumber}`;
       
       // Generate QR code as data URL
-      const qrCodeDataUrl = await QRCode.toDataURL(jsonString, {
+      const qrCodeDataUrl = await QRCode.toDataURL(qrContent, {
         errorCorrectionLevel: 'H',
         margin: 1,
         width: 300,

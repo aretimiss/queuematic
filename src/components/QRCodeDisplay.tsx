@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { QueueRecord } from '@/utils/googleSheets';
 import { qrCodeGenerator } from '@/utils/qrCodeGenerator';
-import { Loader2, Download, RefreshCw } from 'lucide-react';
+import { Loader2, Download, RefreshCw, CreditCard, Hash } from 'lucide-react';
 
 interface QRCodeDisplayProps {
   queueData: QueueRecord;
@@ -60,6 +60,12 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
     }).format(date);
   };
 
+  // Format ID card with X's for privacy
+  const formatIdCard = (idCard: string) => {
+    if (idCard.length !== 13) return idCard;
+    return `${idCard.substring(0, 4)}XXXXX${idCard.substring(9)}`;
+  };
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -107,9 +113,23 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
           </CardContent>
           
           <div className="px-6 py-4">
-            <div className="flex flex-col space-y-1.5 text-center">
-              <p className="text-sm text-muted-foreground">ลงทะเบียนเมื่อ</p>
-              <p className="font-medium">{formatTime(queueData.timestamp)}</p>
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center justify-center gap-2 p-2 bg-secondary rounded-lg">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">เลขบัตรประชาชน:</span>
+                <span className="font-medium">{formatIdCard(queueData.idCardNumber)}</span>
+              </div>
+              
+              <div className="flex items-center justify-center gap-2 p-2 bg-secondary rounded-lg">
+                <Hash className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">หมายเลขคิว:</span>
+                <span className="font-medium text-primary">{queueData.queueNumber}</span>
+              </div>
+              
+              <div className="flex flex-col space-y-1.5 text-center">
+                <p className="text-sm text-muted-foreground">ลงทะเบียนเมื่อ</p>
+                <p className="font-medium">{formatTime(queueData.timestamp)}</p>
+              </div>
             </div>
           </div>
           
