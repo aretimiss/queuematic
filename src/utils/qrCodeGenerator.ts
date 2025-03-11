@@ -1,6 +1,6 @@
 
 /**
- * Utility for generating QR codes
+ * ยูทิลิตี้สำหรับสร้าง QR Code
  */
 
 import QRCode from 'qrcode';
@@ -13,15 +13,15 @@ export interface QRCodeData {
 
 export const qrCodeGenerator = {
   /**
-   * Generates a QR code data URL from queue information
+   * สร้าง QR Code จากข้อมูลคิว
    */
   async generateQRCode(data: QRCodeData): Promise<string> {
     try {
-      // Format the data as a string with ID card number and queue number only
-      // Changed to only include ID card number and queue number as requested
+      // จัดรูปแบบข้อมูลเป็นสตริงที่มีเลขบัตรประชาชนและหมายเลขคิวเท่านั้น
+      // เปลี่ยนให้มีเฉพาะเลขบัตรประชาชนและหมายเลขคิวตามที่ร้องขอ
       const qrContent = `${data.idCardNumber},${data.queueNumber}`;
       
-      // Generate QR code as data URL
+      // สร้าง QR Code เป็น data URL
       const qrCodeDataUrl = await QRCode.toDataURL(qrContent, {
         errorCorrectionLevel: 'H',
         margin: 1,
@@ -34,8 +34,8 @@ export const qrCodeGenerator = {
       
       return qrCodeDataUrl;
     } catch (error) {
-      console.error('Error generating QR code:', error);
-      throw new Error('Failed to generate QR code');
+      console.error('เกิดข้อผิดพลาดในการสร้าง QR Code:', error);
+      throw new Error('ไม่สามารถสร้าง QR Code ได้');
     }
   }
 };
