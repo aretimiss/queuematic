@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { QueueRecord } from '@/utils/googleSheets';
-import { qrCodeGenerator } from '@/utils/qrCodeGenerator';
-import { Loader2, Download, RefreshCw, CreditCard, Hash } from 'lucide-react';
+import { Loader2, Download, RefreshCw, CreditCard, Hash, Share2 } from 'lucide-react';
+import { useToast } from "@/components/ui/use-toast";
 
 interface QRCodeDisplayProps {
   queueData: QueueRecord;
@@ -13,30 +13,8 @@ interface QRCodeDisplayProps {
 }
 
 export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack }) => {
-  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  
-  useEffect(() => {
-    const generateQRCode = async () => {
-      try {
-        setLoading(true);
-        const qrData = {
-          idCardNumber: queueData.idCardNumber,
-          queueNumber: queueData.queueNumber,
-          timestamp: queueData.timestamp
-        };
-        
-        const dataUrl = await qrCodeGenerator.generateQRCode(qrData);
-        setQrCodeUrl(dataUrl);
-      } catch (error) {
-        console.error('Error generating QR code:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    generateQRCode();
-  }, [queueData]);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
   
   const handleDownload = () => {
     // สร้างข้อความที่ประกอบด้วยหมายเลขคิวและเลขบัตรประชาชน
@@ -60,6 +38,39 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     }, 100);
+    
+    toast({
+      title: "ดาวน์โหลดสำเร็จ",
+      description: "บันทึกข้อมูลคิวเรียบร้อยแล้ว",
+    });
+  };
+  
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'ข้อมูลคิวโรงพยาบาล',
+          text: `หมายเลขคิว: ${queueData.queueNumber}\nเลขบัตรประชาชน: ${queueData.idCardNumber}`,
+        });
+        toast({
+          title: "แชร์สำเร็จ",
+          description: "ข้อมูลคิวถูกแชร์เรียบร้อยแล้ว",
+        });
+      } catch (error) {
+        console.error('Error sharing:', error);
+        toast({
+          title: "แชร์ไม่สำเร็จ",
+          description: "ไม่สามารถแชร์ข้อมูลคิวได้",
+          variant: "destructive",
+        });
+      }
+    } else {
+      toast({
+        title: "ไม่รองรับการแชร์",
+        description: "อุปกรณ์ของคุณไม่รองรับฟังก์ชันการแชร์",
+        variant: "destructive",
+      });
+    }
   };
   
   const formatTime = (timestamp: string) => {
@@ -73,16 +84,10 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
     }).format(date);
   };
 
-  // Format ID card with X's for privacy
-  const formatIdCard = (idCard: string) => {
-    if (idCard.length !== 13) return idCard;
-    return `${idCard.substring(0, 4)}XXXXX${idCard.substring(9)}`;
-  };
-
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key="qr-card"
+        key="queue-info-card"
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
@@ -99,62 +104,78 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
             >
               คิวหมายเลข {queueData.queueNumber}
             </motion.div>
-            <CardTitle className="text-2xl font-medium pt-2">QR Code สำหรับเจ้าหน้าที่</CardTitle>
+            <CardTitle className="text-2xl font-medium pt-2">ข้อมูลคิวสำหรับเจ้าหน้าที่</CardTitle>
             <CardDescription>
-              แสดง QR Code นี้เมื่อถึงคิวของคุณ
+              แสดงข้อมูลนี้เมื่อถึงคิวของคุณ
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center pb-0">
-            <div className="w-64 h-64 flex items-center justify-center rounded-lg overflow-hidden bg-white shadow-subtle">
-              {loading ? (
-                <Loader2 className="h-10 w-10 text-muted-foreground animate-spin" />
-              ) : qrCodeUrl ? (
-                <motion.img
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  src={qrCodeUrl}
-                  alt="QR Code"
-                  className="w-full h-full object-contain p-2"
-                />
-              ) : (
-                <div className="text-center p-4">
-                  <RefreshCw className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">ไม่สามารถสร้าง QR Code ได้</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
           
-          <div className="px-6 py-4">
-            <div className="flex flex-col space-y-4">
-              <div className="flex items-center justify-center gap-2 p-2 bg-secondary rounded-lg">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">เลขบัตรประชาชน:</span>
-                <span className="font-medium">{formatIdCard(queueData.idCardNumber)}</span>
-              </div>
-              
-              <div className="flex items-center justify-center gap-2 p-2 bg-secondary rounded-lg">
-                <Hash className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">หมายเลขคิว:</span>
-                <span className="font-medium text-primary">{queueData.queueNumber}</span>
-              </div>
-              
-              <div className="flex flex-col space-y-1.5 text-center">
-                <p className="text-sm text-muted-foreground">ลงทะเบียนเมื่อ</p>
-                <p className="font-medium">{formatTime(queueData.timestamp)}</p>
+          <CardContent className="space-y-6">
+            <div className="bg-white rounded-lg p-6 shadow-subtle">
+              <div className="flex flex-col space-y-4">
+                <div className="flex items-center justify-between border-b pb-4">
+                  <div className="flex items-center gap-2">
+                    <Hash className="h-5 w-5 text-primary" />
+                    <span className="text-sm font-medium">หมายเลขคิว:</span>
+                  </div>
+                  <span className="text-2xl font-bold text-primary">{queueData.queueNumber}</span>
+                </div>
+                
+                <div className="flex items-center justify-between border-b pb-4">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    <span className="text-sm font-medium">เลขบัตรประชาชน:</span>
+                  </div>
+                  <span className="text-lg font-medium">{queueData.idCardNumber}</span>
+                </div>
+                
+                <div className="flex flex-col space-y-1.5 pt-2">
+                  <p className="text-sm text-muted-foreground">ลงทะเบียนเมื่อ</p>
+                  <p className="font-medium">{formatTime(queueData.timestamp)}</p>
+                </div>
               </div>
             </div>
-          </div>
+            
+            {queueData.department && (
+              <div className="bg-secondary rounded-lg p-4">
+                <h4 className="font-medium text-center mb-2">ข้อมูลการรักษา</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="bg-white/50 p-2 rounded">
+                    <p className="text-muted-foreground">แผนกปัจจุบัน</p>
+                    <p className="font-medium">{queueData.department}</p>
+                  </div>
+                  {queueData.nextDepartment && (
+                    <div className="bg-white/50 p-2 rounded">
+                      <p className="text-muted-foreground">แผนกถัดไป</p>
+                      <p className="font-medium">{queueData.nextDepartment}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
           
           <CardFooter className="flex flex-col gap-2 pt-0">
             <Button
-              variant="outline"
+              variant="default"
               className="w-full hover-scale"
               onClick={handleDownload}
             >
               <Download className="mr-2 h-4 w-4" />
               บันทึกข้อมูลคิว
             </Button>
+            
+            {navigator.share && (
+              <Button
+                variant="outline"
+                className="w-full hover-scale"
+                onClick={handleShare}
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                แชร์ข้อมูลคิว
+              </Button>
+            )}
+            
             <Button
               variant="ghost"
               className="w-full text-muted-foreground"

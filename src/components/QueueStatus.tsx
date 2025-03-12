@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { googleSheetsService, QueueStatus } from '@/utils/googleSheets';
-import { Clock, RefreshCw, ArrowLeft, Bell, BellRing } from 'lucide-react';
+import { Clock, RefreshCw, ArrowLeft, Bell, BellRing, ArrowRight, Users, Building2 } from 'lucide-react';
 
 interface QueueStatusProps {
   queueNumber: number;
@@ -216,10 +216,43 @@ export const QueueStatusDisplay: React.FC<QueueStatusProps> = ({ queueNumber, on
                   <h2 className="text-4xl font-bold">{queueNumber}</h2>
                 </div>
                 
+                {status?.department && (
+                  <div className="bg-primary/5 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Building2 className="h-5 w-5 text-primary" />
+                      <h3 className="font-medium">ข้อมูลแผนก</h3>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">แผนกปัจจุบัน:</span>
+                        <span className="font-medium">{status.department}</span>
+                      </div>
+                      
+                      {status.nextDepartment && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">แผนกถัดไป:</span>
+                          <div className="flex items-center">
+                            <ArrowRight className="h-4 w-4 mr-1 text-primary" />
+                            <span className="font-medium">{status.nextDepartment}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="space-y-4">
-                  <div className="flex justify-between text-sm">
-                    <span>คิวที่กำลังให้บริการ</span>
-                    <span className="font-medium">{status?.currentQueueNumber || '-'}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">คิวที่กำลังให้บริการ</span>
+                    <span className="text-xl font-medium">{status?.currentQueueNumber || '-'}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <Users className="h-4 w-4 mr-1 text-muted-foreground" />
+                      <span className="text-sm">จำนวนคิวที่รออยู่</span>
+                    </div>
+                    <span className="font-medium">{status?.waitingCount || '0'}</span>
                   </div>
                   
                   <div className="space-y-2">
