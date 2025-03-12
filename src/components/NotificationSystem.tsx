@@ -42,6 +42,7 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ queueNum
   // Toggle sound notifications
   const toggleSound = () => {
     setSoundEnabled(!soundEnabled);
+    localStorage.setItem('notificationSound', (!soundEnabled).toString());
   };
   
   // Play notification sound
@@ -112,6 +113,19 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ queueNum
     }, 10000);
   };
   
+  // Load sound preference
+  useEffect(() => {
+    const soundPref = localStorage.getItem('notificationSound');
+    if (soundPref !== null) {
+      setSoundEnabled(soundPref === 'true');
+    }
+    
+    // Check if notifications were previously enabled
+    if (Notification.permission === 'granted') {
+      setNotificationsEnabled(true);
+    }
+  }, []);
+  
   // Position notification
   useEffect(() => {
     if (position !== null && position <= 5 && notificationsEnabled && !showingNotification) {
@@ -122,6 +136,9 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ queueNum
   // Set up periodic checks
   useEffect(() => {
     if (notificationsEnabled && queueNumber) {
+      // Initial check
+      checkQueueStatus();
+      
       const checkInterval = setInterval(checkQueueStatus, 15000);
       return () => clearInterval(checkInterval);
     }

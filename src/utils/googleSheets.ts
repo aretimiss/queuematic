@@ -27,7 +27,13 @@ export const googleSheetsService = {
   async registerQueue(idCardNumber: string): Promise<QueueRecord> {
     try {
       const response = await fetch(`${SHEET_ENDPOINT}?action=registerQueue&idCardNumber=${idCardNumber}`);
-      return await response.json();
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      return data;
     } catch (error) {
       console.error('บันทึกคิวไม่สำเร็จ:', error);
       throw new Error('การลงทะเบียนไม่สำเร็จ');
@@ -37,7 +43,13 @@ export const googleSheetsService = {
   async getQueueStatus(queueNumber: number): Promise<QueueStatus> {
     try {
       const response = await fetch(`${SHEET_ENDPOINT}?action=getQueueStatus&queueNumber=${queueNumber}`);
-      return await response.json();
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      return data;
     } catch (error) {
       console.error('ดึงข้อมูลคิวไม่สำเร็จ:', error);
       throw new Error('ไม่สามารถดึงข้อมูลคิวได้');
@@ -48,6 +60,12 @@ export const googleSheetsService = {
     try {
       const response = await fetch(`${SHEET_ENDPOINT}?action=checkNotification&queueNumber=${queueNumber}`);
       const data = await response.json();
+      
+      if (data.error) {
+        console.error('ตรวจสอบการแจ้งเตือนไม่สำเร็จ:', data.error);
+        return false;
+      }
+      
       return data.shouldNotify || false;
     } catch (error) {
       console.error('ไม่สามารถตรวจสอบการแจ้งเตือนได้:', error);
@@ -69,10 +87,33 @@ export const googleSheetsService = {
       
       const response = await fetch(`${SHEET_ENDPOINT}?${params}`);
       const result = await response.json();
+      
+      if (result.error) {
+        console.error('อัพเดทสถานะคิวไม่สำเร็จ:', result.error);
+        return false;
+      }
+      
       return result.success || false;
     } catch (error) {
       console.error('ไม่สามารถอัพเดทสถานะคิวได้:', error);
       return false;
+    }
+  },
+  
+  async getQueueByIdCard(idCardNumber: string): Promise<QueueRecord | null> {
+    try {
+      const response = await fetch(`${SHEET_ENDPOINT}?action=getQueueByIdCard&idCardNumber=${idCardNumber}`);
+      const data = await response.json();
+      
+      if (data.error) {
+        console.error('ค้นหาคิวด้วยเลขบัตรประชาชนไม่สำเร็จ:', data.error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('ไม่สามารถค้นหาคิวด้วยเลขบัตรประชาชนได้:', error);
+      return null;
     }
   }
 };

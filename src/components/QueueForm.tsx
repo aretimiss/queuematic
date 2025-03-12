@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { googleSheetsService, QueueRecord } from '@/utils/googleSheets';
-import { ArrowRight, ClipboardCheck, Loader2 } from 'lucide-react';
+import { ArrowRight, ClipboardCheck, Loader2, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface QueueFormProps {
   onQueueRegistered: (queueData: QueueRecord) => void;
@@ -15,6 +16,8 @@ interface QueueFormProps {
 export const QueueForm: React.FC<QueueFormProps> = ({ onQueueRegistered }) => {
   const [idCardNumber, setIdCardNumber] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingExisting, setCheckingExisting] = useState(false);
+  const [existingQueueData, setExistingQueueData] = useState<QueueRecord | null>(null);
   const { toast } = useToast();
   
   // Validates a Thai ID card number (13 digits)
@@ -31,11 +34,47 @@ export const QueueForm: React.FC<QueueFormProps> = ({ onQueueRegistered }) => {
     // Limit to 13 digits (Thai ID card length)
     if (value.length <= 13) {
       setIdCardNumber(value);
+      
+      // Reset existing queue data when input changes
+      if (existingQueueData) {
+        setExistingQueueData(null);
+      }
     }
   };
   
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const checkExistingQueue = async () => {
+    if (!validateIdCardNumber(idCardNumber)) {
+      toast({
+        title: "กรุณาตรวจสอบเลขบัตรประชาชน",
+        description: "เลขบัตรประชาชนต้องมี 13 หลัก",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      setCheckingExisting(true);
+      const queueData = await googleSheetsService.getQueueByIdCard(idCardNumber);
+      
+      if (queueData && ['waiting', 'processing', 'transferred'].includes(queueData.status)) {
+        setExistingQueueData(queueData);
+      } else {
+        setExistingQueueData(null);
+        handleSubmit();
+      }
+    } catch (error) {
+      console.error('Error checking existing queue:', error);
+      // If there's an error checking, proceed with queue registration
+      handleSubmit();
+    } finally {
+      setCheckingExisting(false);
+    }
+  };
+  
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
     
     if (!validateIdCardNumber(idCardNumber)) {
       toast({
@@ -68,6 +107,17 @@ export const QueueForm: React.FC<QueueFormProps> = ({ onQueueRegistered }) => {
     }
   };
   
+  const useExistingQueue = () => {
+    if (existingQueueData) {
+      onQueueRegistered(existingQueueData);
+      
+      toast({
+        title: "ดึงข้อมูลคิวสำเร็จ",
+        description: `คุณมีคิวหมายเลข ${existingQueueData.queueNumber} อยู่แล้วในระบบ`,
+      });
+    }
+  };
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -83,7 +133,24 @@ export const QueueForm: React.FC<QueueFormProps> = ({ onQueueRegistered }) => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {existingQueueData && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4"
+            >
+              <Alert variant="warning" className="bg-amber-50 border-amber-200">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800">พบคิวในระบบ</AlertTitle>
+                <AlertDescription className="text-amber-700">
+                  คุณมีคิวหมายเลข {existingQueueData.queueNumber} อยู่แล้วในระบบ 
+                  {existingQueueData.department && ` ที่แผนก ${existingQueueData.department}`}
+                </AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
+          
+          <form onSubmit={(e) => { e.preventDefault(); checkExistingQueue(); }} className="space-y-4">
             <div className="space-y-2">
               <div className="relative">
                 <Input
@@ -94,7 +161,7 @@ export const QueueForm: React.FC<QueueFormProps> = ({ onQueueRegistered }) => {
                   maxLength={13}
                   className="h-12 text-lg font-medium tracking-wider text-center input-highlight"
                   required
-                  disabled={loading}
+                  disabled={loading || checkingExisting}
                 />
                 {idCardNumber.length > 0 && (
                   <motion.div 
@@ -113,24 +180,44 @@ export const QueueForm: React.FC<QueueFormProps> = ({ onQueueRegistered }) => {
             </div>
           </form>
         </CardContent>
-        <CardFooter>
-          <Button 
-            onClick={handleSubmit}
-            disabled={idCardNumber.length !== 13 || loading} 
-            className="w-full h-12 text-base hover-scale"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                กำลังประมวลผล
-              </>
-            ) : (
-              <>
-                รับคิว
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
+        <CardFooter className="flex flex-col gap-2">
+          {existingQueueData ? (
+            <>
+              <Button 
+                onClick={useExistingQueue}
+                className="w-full h-12 text-base hover-scale bg-green-600 hover:bg-green-700"
+              >
+                <ArrowRight className="mr-2 h-4 w-4" />
+                ใช้คิวที่มีอยู่แล้ว
+              </Button>
+              
+              <Button 
+                onClick={() => setExistingQueueData(null)}
+                variant="outline"
+                className="w-full h-12 text-base"
+              >
+                ยกเลิกและลงทะเบียนใหม่
+              </Button>
+            </>
+          ) : (
+            <Button 
+              onClick={checkExistingQueue}
+              disabled={idCardNumber.length !== 13 || loading || checkingExisting} 
+              className="w-full h-12 text-base hover-scale"
+            >
+              {loading || checkingExisting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {checkingExisting ? 'กำลังตรวจสอบ...' : 'กำลังประมวลผล...'}
+                </>
+              ) : (
+                <>
+                  รับคิว
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </motion.div>

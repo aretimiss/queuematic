@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +17,17 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
   
   const handleDownload = () => {
     // สร้างข้อความที่ประกอบด้วยหมายเลขคิวและเลขบัตรประชาชน
-    const contentToDownload = `หมายเลขคิว: ${queueData.queueNumber}\nเลขบัตรประชาชน: ${queueData.idCardNumber}`;
+    const contentToDownload = `
+      ข้อมูลผู้ป่วย - โรงพยาบาล
+      =======================
+      หมายเลขคิว: ${queueData.queueNumber}
+      เลขบัตรประชาชน: ${queueData.idCardNumber}
+      วันที่ลงทะเบียน: ${new Date(queueData.timestamp).toLocaleString('th-TH')}
+      ${queueData.department ? `แผนกปัจจุบัน: ${queueData.department}` : ''}
+      ${queueData.nextDepartment ? `แผนกถัดไป: ${queueData.nextDepartment}` : ''}
+      =======================
+      กรุณาเก็บข้อมูลนี้ไว้และแสดงพร้อมบัตรประชาชนเมื่อถึงคิวของท่าน
+    `;
     
     // สร้าง Blob จากข้อความ
     const blob = new Blob([contentToDownload], { type: 'text/plain;charset=utf-8' });
@@ -29,7 +38,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
     // สร้างลิงก์สำหรับดาวน์โหลดและคลิกโดยอัตโนมัติ
     const link = document.createElement('a');
     link.href = url;
-    link.download = `คิว-${queueData.queueNumber}.txt`;
+    link.download = `คิว-${queueData.queueNumber}-${queueData.idCardNumber.substring(queueData.idCardNumber.length - 4)}.txt`;
     document.body.appendChild(link);
     link.click();
     
@@ -162,7 +171,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
               onClick={handleDownload}
             >
               <Download className="mr-2 h-4 w-4" />
-              บันทึกข้อมูลคิว
+              บันทึกข้อมูลคิวและเลขบัตร
             </Button>
             
             {navigator.share && (
