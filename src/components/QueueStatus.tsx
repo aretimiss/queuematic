@@ -29,6 +29,7 @@ export const QueueStatusDisplay: React.FC<QueueStatusProps> = ({ queueNumber, on
       setLoading(true);
       setError(null);
       const data = await googleSheetsService.getQueueStatus(queueNumber);
+      console.log("Queue status fetched:", data); // ตรวจสอบข้อมูลที่ได้รับ
       setStatus(data);
       setRefreshTime(new Date());
       
@@ -216,19 +217,26 @@ export const QueueStatusDisplay: React.FC<QueueStatusProps> = ({ queueNumber, on
                   <h2 className="text-4xl font-bold">{queueNumber}</h2>
                 </div>
                 
-                {status?.department && (
+                {status && (
                   <div className="bg-primary/5 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Building2 className="h-5 w-5 text-primary" />
                       <h3 className="font-medium">ข้อมูลแผนก</h3>
                     </div>
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">แผนกปัจจุบัน:</span>
-                        <span className="font-medium">{status.department}</span>
-                      </div>
+                      {status.department ? (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">แผนกปัจจุบัน:</span>
+                          <span className="font-medium">{status.department}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">แผนกปัจจุบัน:</span>
+                          <span className="text-muted-foreground">ไม่ระบุ</span>
+                        </div>
+                      )}
                       
-                      {status.nextDepartment && (
+                      {status.nextDepartment ? (
                         <div className="flex items-center justify-between">
                           <span className="text-sm">แผนกถัดไป:</span>
                           <div className="flex items-center">
@@ -236,7 +244,7 @@ export const QueueStatusDisplay: React.FC<QueueStatusProps> = ({ queueNumber, on
                             <span className="font-medium">{status.nextDepartment}</span>
                           </div>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 )}

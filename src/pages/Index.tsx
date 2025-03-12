@@ -23,6 +23,7 @@ const Index = () => {
     if (savedQueueData) {
       try {
         const parsedData = JSON.parse(savedQueueData) as QueueRecord;
+        console.log("Loaded queue data from localStorage:", parsedData); // ตรวจสอบข้อมูลที่โหลดมา
         setQueueData(parsedData);
         
         // If we have queue data, show the status by default
@@ -43,6 +44,24 @@ const Index = () => {
     try {
       const status = await googleSheetsService.getQueueStatus(queueNumber);
       setQueuePosition(status.position);
+      
+      // อัพเดทข้อมูลแผนกใน queueData ถ้าพบข้อมูลใหม่
+      if (status.department || status.nextDepartment) {
+        setQueueData(prevData => {
+          if (!prevData) return null;
+          
+          const updatedData = {
+            ...prevData,
+            department: status.department || prevData.department,
+            nextDepartment: status.nextDepartment || prevData.nextDepartment
+          };
+          
+          // บันทึกข้อมูลที่อัพเดทลง localStorage
+          localStorage.setItem('queueData', JSON.stringify(updatedData));
+          
+          return updatedData;
+        });
+      }
     } catch (error) {
       console.error('Error checking queue position:', error);
     }

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +13,8 @@ interface QRCodeDisplayProps {
 
 export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack }) => {
   const { toast } = useToast();
+  
+  console.log("Queue data in QRCodeDisplay:", queueData); // ตรวจสอบข้อมูลที่ได้รับ
   
   const handleDownload = () => {
     // สร้างข้อความที่ประกอบด้วยหมายเลขคิวและเลขบัตรประชาชน
@@ -151,7 +152,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
                 <h3 className="font-medium">ข้อมูลแผนกที่ต้องไป</h3>
               </div>
               
-              {queueData.department ? (
+              {queueData && queueData.department ? (
                 <div className="space-y-4">
                   <div className="bg-white/80 p-3 rounded-lg">
                     <p className="text-sm text-muted-foreground mb-1">แผนกปัจจุบัน</p>

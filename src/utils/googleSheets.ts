@@ -42,12 +42,17 @@ export const googleSheetsService = {
 
   async getQueueStatus(queueNumber: number): Promise<QueueStatus> {
     try {
+      // เพิ่ม console.log เพื่อตรวจสอบการเรียก API
+      console.log(`Fetching queue status for queue number: ${queueNumber}`);
       const response = await fetch(`${SHEET_ENDPOINT}?action=getQueueStatus&queueNumber=${queueNumber}`);
       const data = await response.json();
       
       if (data.error) {
         throw new Error(data.error);
       }
+      
+      // เพิ่ม console.log เพื่อตรวจสอบข้อมูลที่ได้รับกลับมา
+      console.log('Queue status data received:', data);
       
       return data;
     } catch (error) {
