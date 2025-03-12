@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { QueueRecord } from '@/utils/googleSheets';
-import { Loader2, Download, RefreshCw, CreditCard, Hash, Share2 } from 'lucide-react';
+import { Download, Share2, CreditCard, Hash, MapPin, ArrowRight, Building2 } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 
 interface QRCodeDisplayProps {
@@ -12,7 +13,6 @@ interface QRCodeDisplayProps {
 }
 
 export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack }) => {
-  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   
   const handleDownload = () => {
@@ -113,7 +113,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
             >
               คิวหมายเลข {queueData.queueNumber}
             </motion.div>
-            <CardTitle className="text-2xl font-medium pt-2">ข้อมูลคิวสำหรับเจ้าหน้าที่</CardTitle>
+            <CardTitle className="text-2xl font-medium pt-2">รายละเอียดคิว</CardTitle>
             <CardDescription>
               แสดงข้อมูลนี้เมื่อถึงคิวของคุณ
             </CardDescription>
@@ -145,23 +145,59 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ queueData, onBack 
               </div>
             </div>
             
-            {queueData.department && (
-              <div className="bg-secondary rounded-lg p-4">
-                <h4 className="font-medium text-center mb-2">ข้อมูลการรักษา</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="bg-white/50 p-2 rounded">
-                    <p className="text-muted-foreground">แผนกปัจจุบัน</p>
-                    <p className="font-medium">{queueData.department}</p>
+            <div className="bg-secondary/20 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Building2 className="h-5 w-5 text-primary" />
+                <h3 className="font-medium">ข้อมูลแผนกที่ต้องไป</h3>
+              </div>
+              
+              {queueData.department ? (
+                <div className="space-y-4">
+                  <div className="bg-white/80 p-3 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">แผนกปัจจุบัน</p>
+                    <div className="flex items-center">
+                      <MapPin className="h-4 w-4 mr-2 text-primary" />
+                      <p className="font-medium">{queueData.department}</p>
+                    </div>
                   </div>
+                  
                   {queueData.nextDepartment && (
-                    <div className="bg-white/50 p-2 rounded">
-                      <p className="text-muted-foreground">แผนกถัดไป</p>
-                      <p className="font-medium">{queueData.nextDepartment}</p>
+                    <div className="bg-white/80 p-3 rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-1">แผนกถัดไป</p>
+                      <div className="flex items-center">
+                        <div className="flex items-center">
+                          <ArrowRight className="h-4 w-4 mr-2 text-primary" />
+                          <p className="font-medium">{queueData.nextDepartment}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="text-center py-2 text-muted-foreground">
+                  <p>ยังไม่ได้ระบุแผนก</p>
+                  <p className="text-xs">โปรดรอเจ้าหน้าที่ดำเนินการ</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-primary/5 rounded-lg p-4">
+              <h4 className="font-medium mb-2">คำแนะนำ</h4>
+              <ul className="text-sm space-y-2">
+                <li className="flex items-start">
+                  <span className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2 mt-0.5">1</span>
+                  <span>โปรดแสดงข้อมูลนี้พร้อมบัตรประชาชนเมื่อถึงคิวของท่าน</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2 mt-0.5">2</span>
+                  <span>เมื่อมีการเปลี่ยนแผนก เจ้าหน้าที่จะอัปเดตข้อมูลให้ท่านทราบ</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2 mt-0.5">3</span>
+                  <span>หากต้องการความช่วยเหลือ สามารถสอบถามเจ้าหน้าที่ได้</span>
+                </li>
+              </ul>
+            </div>
           </CardContent>
           
           <CardFooter className="flex flex-col gap-2 pt-0">
