@@ -1,0 +1,391 @@
+
+/**
+ * ระบบจัดการคิวโรงพยาบาล (Google Apps Script)
+ * สำหรับใช้กับ Google Sheets เป็น Backend
+ */
+
+// กำหนดชื่อชีทข้อมูล
+const QUEUE_SHEET_NAME = 'คิว';
+const SETTINGS_SHEET_NAME = 'ตั้งค่า';
+
+// ฟังก์ชันหลักสำหรับจัดการ HTTP requests
+function doGet(e) {
+  try {
+    const action = e.parameter.action;
+    let result;
+
+    switch (action) {
+      case 'registerQueue':
+        result = registerQueue(e.parameter.idCardNumber);
+        break;
+      case 'getQueueStatus':
+        result = getQueueStatus(parseInt(e.parameter.queueNumber));
+        break;
+      case 'checkNotification':
+        result = checkNotification(parseInt(e.parameter.queueNumber));
+        break;
+      case 'updateQueueStatus':
+        result = updateQueueStatus(
+          parseInt(e.parameter.queueNumber),
+          e.parameter.status,
+          e.parameter.nextDepartment
+        );
+        break;
+      case 'getQueueByIdCard':
+        result = getQueueByIdCard(e.parameter.idCardNumber);
+        break;
+      default:
+        result = { error: 'ไม่พบ action ที่ระบุ' };
+    }
+
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ error: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * ลงทะเบียนคิวใหม่
+ * @param {string} idCardNumber - เลขบัตรประชาชน
+ * @returns {Object} ข้อมูลคิวที่ลงทะเบียน
+ */
+function registerQueue(idCardNumber) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(QUEUE_SHEET_NAME);
+  
+  // ตรวจสอบว่ามีคิวสำหรับเลขบัตรประชาชนนี้อยู่แล้วหรือไม่
+  const existingQueue = getQueueByIdCard(idCardNumber);
+  if (existingQueue && ['waiting', 'processing', 'transferred'].includes(existingQueue.status)) {
+    return existingQueue;
+  }
+  
+  // หาคิวล่าสุด
+  const lastRow = sheet.getLastRow();
+  const nextQueueNumber = lastRow === 1 ? 1 : parseInt(sheet.getRange(lastRow, 4).getValue()) + 1;
+  
+  // สร้าง ID แบบ unique (ใช้ timestamp)
+  const queueId = new Date().getTime().toString();
+  const timestamp = new Date().toISOString();
+  
+  // ลงทะเบียนคิวใหม่
+  const newRow = [
+    queueId,                  // id
+    idCardNumber,             // idCardNumber
+    timestamp,                // timestamp
+    nextQueueNumber,          // queueNumber
+    'waiting',                // status
+    false,                    // notificationSent
+    'ตรวจโรคทั่วไป',           // department (เริ่มต้นที่แผนกตรวจโรคทั่วไป)
+    ''                        // nextDepartment
+  ];
+  
+  sheet.appendRow(newRow);
+  
+  return {
+    id: queueId,
+    idCardNumber: idCardNumber,
+    timestamp: timestamp,
+    queueNumber: nextQueueNumber,
+    status: 'waiting',
+    notificationSent: false,
+    department: 'ตรวจโรคทั่วไป',
+    nextDepartment: ''
+  };
+}
+
+/**
+ * ดึงข้อมูลสถานะคิว
+ * @param {number} queueNumber - หมายเลขคิว
+ * @returns {Object} ข้อมูลสถานะคิว
+ */
+function getQueueStatus(queueNumber) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(QUEUE_SHEET_NAME);
+  
+  // ดึงข้อมูลทั้งหมด
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
+  
+  if (values.length <= 1) {
+    throw new Error('ไม่พบข้อมูลคิวในระบบ');
+  }
+  
+  // ค้นหาข้อมูลคิวที่ต้องการ
+  let queueData = null;
+  let currentQueueNumber = 0;
+  let position = 0;
+  let waitingCount = 0;  // นับตามสถานะ waiting โดยไม่นับตัวเอง
+  let processingCount = 0;  // นับตามสถานะ processing
+  
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    const status = row[4];
+    const rowQueueNumber = row[3];
+    
+    if (status === 'processing') {
+      // ดึงค่าคิวปัจจุบันที่กำลังให้บริการ (เอาคิวล่าสุดที่มีสถานะ processing)
+      if (rowQueueNumber > currentQueueNumber) {
+        currentQueueNumber = rowQueueNumber;
+      }
+      processingCount++;
+    }
+    
+    if (status === 'waiting') {
+      // นับคิวที่กำลังรออยู่ (สถานะ waiting) ทั้งหมดแต่ไม่นับตัวเอง
+      if (rowQueueNumber !== queueNumber) {
+        waitingCount++;
+      }
+      
+      // ถ้าตัวเองอยู่สถานะ waiting ให้เช็คว่ามีคิว waiting กี่ตัวที่อยู่ก่อนหน้าตัวเอง
+      if (rowQueueNumber === queueNumber) {
+        // ไม่ต้องนับ position เพิ่ม เพราะนี่คือตัวเอง
+        queueData = {
+          rowIndex: i,
+          queueNumber: rowQueueNumber,
+          status: status,
+          department: row[6],
+          nextDepartment: row[7]
+        };
+      } else if (rowQueueNumber < queueNumber && status === 'waiting') {
+        // นับจำนวนคิวที่รออยู่ก่อนหน้าคิวเรา
+        position++;
+      }
+    }
+    
+    // หาข้อมูลคิวของผู้ใช้
+    if (rowQueueNumber === queueNumber && !queueData) {
+      queueData = {
+        rowIndex: i,
+        queueNumber: rowQueueNumber,
+        status: status,
+        department: row[6],
+        nextDepartment: row[7]
+      };
+    }
+  }
+  
+  if (!queueData) {
+    throw new Error('ไม่พบข้อมูลคิวของคุณ');
+  }
+  
+  // คำนวณเวลาที่คาดว่าจะรอ (สมมติว่า 1 คิวใช้เวลา 5 นาที)
+  const timePerQueue = 5; // นาทีต่อคิว
+  const estimatedTimeMinutes = position * timePerQueue;
+  
+  return {
+    currentQueueNumber: currentQueueNumber || 0,
+    yourQueueNumber: queueNumber,
+    estimatedTimeMinutes: estimatedTimeMinutes,
+    position: position,
+    waitingCount: waitingCount,
+    processingCount: processingCount,
+    department: queueData.department,
+    nextDepartment: queueData.nextDepartment
+  };
+}
+
+/**
+ * ตรวจสอบว่าควรส่งการแจ้งเตือนหรือไม่
+ * @param {number} queueNumber - หมายเลขคิว
+ * @returns {Object} ข้อมูลการแจ้งเตือน
+ */
+function checkNotification(queueNumber) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(QUEUE_SHEET_NAME);
+  
+  // ดึงข้อมูลทั้งหมด
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
+  
+  if (values.length <= 1) {
+    return { shouldNotify: false };
+  }
+  
+  // ค้นหาข้อมูลคิวที่ต้องการ
+  let queueRowIndex = -1;
+  let queueData = null;
+  
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if (row[3] === queueNumber) {
+      queueRowIndex = i;
+      queueData = {
+        status: row[4],
+        notificationSent: row[5],
+        nextDepartment: row[7]
+      };
+      break;
+    }
+  }
+  
+  if (!queueData) {
+    return { shouldNotify: false };
+  }
+  
+  // เช็คว่ามีการเปลี่ยนแผนก
+  if (queueData.nextDepartment && !queueData.notificationSent) {
+    // ถ้ามีการเปลี่ยนแผนกและยังไม่เคยส่งการแจ้งเตือน
+    sheet.getRange(queueRowIndex + 1, 6).setValue(true);
+    return { shouldNotify: true };
+  }
+  
+  // เช็คตำแหน่งคิว
+  const status = getQueueStatus(queueNumber);
+  
+  // ถ้าเหลืออีก 5 คิวหรือน้อยกว่า และยังไม่เคยส่งการแจ้งเตือน
+  if (status.position <= 5 && status.position > 0 && !queueData.notificationSent) {
+    sheet.getRange(queueRowIndex + 1, 6).setValue(true);
+    return { shouldNotify: true };
+  }
+  
+  return { shouldNotify: false };
+}
+
+/**
+ * อัพเดทสถานะคิว
+ * @param {number} queueNumber - หมายเลขคิว
+ * @param {string} status - สถานะใหม่
+ * @param {string} nextDepartment - แผนกถัดไป (ถ้ามี)
+ * @returns {Object} ผลลัพธ์การอัพเดท
+ */
+function updateQueueStatus(queueNumber, status, nextDepartment) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(QUEUE_SHEET_NAME);
+  
+  // ดึงข้อมูลทั้งหมด
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
+  
+  if (values.length <= 1) {
+    return { success: false, error: 'ไม่พบข้อมูลคิวในระบบ' };
+  }
+  
+  // ค้นหาข้อมูลคิวที่ต้องการ
+  let queueRowIndex = -1;
+  
+  for (let i = 1; i < values.length; i++) {
+    if (values[i][3] === queueNumber) {
+      queueRowIndex = i;
+      break;
+    }
+  }
+  
+  if (queueRowIndex === -1) {
+    return { success: false, error: 'ไม่พบข้อมูลคิวที่ระบุ' };
+  }
+  
+  // อัพเดทสถานะ
+  sheet.getRange(queueRowIndex + 1, 5).setValue(status);
+  
+  // ถ้ามีการระบุแผนกถัดไป
+  if (nextDepartment) {
+    // บันทึกแผนกถัดไป
+    sheet.getRange(queueRowIndex + 1, 8).setValue(nextDepartment);
+    
+    // รีเซ็ตสถานะการแจ้งเตือนเพื่อให้ส่งการแจ้งเตือนใหม่
+    sheet.getRange(queueRowIndex + 1, 6).setValue(false);
+  }
+  
+  return { success: true };
+}
+
+/**
+ * ค้นหาคิวด้วยเลขบัตรประชาชน
+ * @param {string} idCardNumber - เลขบัตรประชาชน
+ * @returns {Object} ข้อมูลคิว
+ */
+function getQueueByIdCard(idCardNumber) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(QUEUE_SHEET_NAME);
+  
+  // ดึงข้อมูลทั้งหมด
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
+  
+  if (values.length <= 1) {
+    return null;
+  }
+  
+  // ค้นหาคิวล่าสุดของเลขบัตรประชาชนนี้
+  let latestQueue = null;
+  let latestTimestamp = null;
+  
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    
+    if (row[1] === idCardNumber) {
+      const status = row[4];
+      const timestamp = new Date(row[2]);
+      
+      // เลือกคิวที่ active ล่าสุด (waiting, processing, transferred)
+      if (['waiting', 'processing', 'transferred'].includes(status)) {
+        if (!latestTimestamp || timestamp > latestTimestamp) {
+          latestQueue = {
+            id: row[0],
+            idCardNumber: row[1],
+            timestamp: row[2],
+            queueNumber: row[3],
+            status: row[4],
+            notificationSent: row[5],
+            department: row[6],
+            nextDepartment: row[7]
+          };
+          latestTimestamp = timestamp;
+        }
+      }
+    }
+  }
+  
+  return latestQueue;
+}
+
+/**
+ * ฟังก์ชันสำหรับสร้างโครงสร้าง Sheet เริ่มต้น (ใช้ครั้งแรกเท่านั้น)
+ */
+function setupInitialSheets() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // สร้างชีทคิว
+  let queueSheet = ss.getSheetByName(QUEUE_SHEET_NAME);
+  if (!queueSheet) {
+    queueSheet = ss.insertSheet(QUEUE_SHEET_NAME);
+    
+    // สร้างหัวตาราง
+    queueSheet.getRange('A1:H1').setValues([
+      ['id', 'idCardNumber', 'timestamp', 'queueNumber', 'status', 'notificationSent', 'department', 'nextDepartment']
+    ]);
+    
+    // จัดรูปแบบหัวตาราง
+    queueSheet.getRange('A1:H1').setFontWeight('bold');
+    queueSheet.setFrozenRows(1);
+  }
+  
+  // สร้างชีทตั้งค่า
+  let settingsSheet = ss.getSheetByName(SETTINGS_SHEET_NAME);
+  if (!settingsSheet) {
+    settingsSheet = ss.insertSheet(SETTINGS_SHEET_NAME);
+    
+    // สร้างการตั้งค่าเริ่มต้น
+    settingsSheet.getRange('A1:B1').setValues([['ตั้งค่า', 'ค่า']]);
+    settingsSheet.getRange('A2:B2').setValues([['เวลาเฉลี่ยต่อคิว (นาที)', '5']]);
+    settingsSheet.getRange('A3:B3').setValues([['จำนวนคิวก่อนแจ้งเตือน', '5']]);
+    
+    // สร้างรายชื่อแผนก
+    settingsSheet.getRange('A5:A5').setValue('รายชื่อแผนก');
+    settingsSheet.getRange('A6:A11').setValues([
+      ['ตรวจโรคทั่วไป'],
+      ['ห้องยา'],
+      ['เอกซเรย์'],
+      ['ตรวจพิเศษ'],
+      ['กายภาพบำบัด'],
+      ['ชำระเงิน']
+    ]);
+    
+    // จัดรูปแบบหัวตาราง
+    settingsSheet.getRange('A1:B1').setFontWeight('bold');
+    settingsSheet.getRange('A5:A5').setFontWeight('bold');
+    settingsSheet.setFrozenRows(1);
+  }
+}
